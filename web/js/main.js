@@ -8,6 +8,7 @@ import {
   MAX_PER_WALLET, MIN_FLAT_PLAYERS, payout,
 } from "./rules.js";
 import { placeNear } from "./places.js";
+import { Sound } from "./sound.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -15,6 +16,7 @@ const nowSec = () => performance.now() / 1000;
 const mmss = (s) => { s = Math.max(0, Math.ceil(s)); return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } };
+const SFX = new Sound(lsGet("flat-sound") === "1");
 
 let world;
 const chain = LIVE ? new Chain() : null;
@@ -26,6 +28,9 @@ const S = {
   snap: null, clockOffset: 0, tipped: new Set(), recent: [], claim: null, bal: null, pendingReveal: null, pollTimer: 0, ready: false,
   // practice
   practice: null, pStart: 0, pEndedAt: 0, pShown: false,
+  soundRound: "", soundPhase: "",
+  streak: Math.max(0, Number(lsGet("flat-streak") || 0) || 0),
+  bestStreak: Math.max(0, Number(lsGet("flat-best-streak") || 0) || 0),
 };
 
 // ------------------------------------------------------------------ helpers over both modes
@@ -83,6 +88,13 @@ function bindUI() {
   $("tabLive").onclick = () => setMode("live");
   $("tabPractice").onclick = () => setMode("practice");
   $("howBtn").onclick = () => $("howDialog").showModal();
+  $("soundBtn").onclick = () => {
+    const enabled = SFX.toggle();
+    if (enabled === null) { toast("this browser does not support game audio", true); return; }
+    lsSet("flat-sound", enabled ? "1" : "0");
+    renderSoundToggle();
+  };
+  if (SFX.enabled) document.addEventListener("pointerdown", () => SFX.wake(), { once: true });
   $("walletBtn").onclick = connect;
   $("dropBtn").onclick = doDrop;
   $("revealBtn").onclick = doReveal;
@@ -141,6 +153,7 @@ function applySnapshot(snap) {
   if (prev && prev.id === snap.id && snap.settlers.length > prev.settlers.length) {
     const s = snap.settlers[snap.settlers.length - 1];
     if (!(chain.account && s.owner.toLowerCase() === chain.account.toLowerCase())) {
+      SFX.rivalDrop();
       toast(`${short(s.owner)} dropped on ${RING_NAMES[ringOf(s.cell)]}, near ${placeNear(s.cell)}`);
     }
   }
@@ -203,6 +216,7 @@ async function doDrop() {
     const err = S.practice.drop(S.selected, v.t);
     if (err) { status(err, true); return; }
     world.setSettlers(S.practice.round.settlers, ME);
+    SFX.drop();
     status(`landed near ${placeNear(S.selected)}. good luck.`);
     S.selected = -1;
     world.setSelected(-1);
@@ -214,6 +228,7 @@ async function doDrop() {
   render();
   try {
     await chain.drop(S.selected, (m) => status(m));
+    SFX.drop();
     status(`landed near ${placeNear(S.selected)}. good luck.`);
     S.selected = -1;
     world.setSelected(-1);
@@ -256,6 +271,7 @@ async function doClaim() {
   render();
   try {
     await chain.claimAll(S.claim.items, (m) => status(m));
+    SFX.claim();
     toast(`claimed ${fmtWif(S.claim.total)} $wif`);
     status("");
     S.claim = null;
@@ -282,6 +298,7 @@ function tick() {
     const r = S.practice.round;
     const before = r.settlers.length;
     const ended = S.practice.tick(nowSec() - S.pStart);
+    if (r.settlers.slice(before).some((s) => s.owner !== ME)) SFX.rivalDrop();
     if (r.settlers.length !== before && !r.result) world.setSettlers(r.settlers, ME);
     if (ended) {
       world.setSettlers(r.settlers, ME);
@@ -321,6 +338,7 @@ function playTip(x) {
       labels.set(s.key, { text: `+${x.amount(profit)}`, cls: own ? "me" : "" });
     }
   });
+  SFX.tip();
   world.tip({ outcome: round.outcome, tilt: round.tilt, fallenKeys, labels });
   if (mine.length) setTimeout(() => showResult(x, mine, myIn, myOut, fallenKeys.size), 2800);
 }
@@ -330,6 +348,24 @@ function showResult(x, mine, myIn, myOut, fallenCount) {
   const net = myOut - myIn;
   const flat = round.outcome === Outcome.Flat, voided = round.outcome === Outcome.Void;
   const survived = mine.filter((m) => !m.fell).length;
+  let streakNote = "";
+  if (mine.length && voided) {
+    SFX.refund();
+    streakNote = `<p class="streak-note">void round · streak stays at ${S.streak} · best ${S.bestStreak}</p>`;
+  } else if (mine.length && survived) {
+    const previousBest = S.bestStreak;
+    S.streak += 1;
+    S.bestStreak = Math.max(S.bestStreak, S.streak);
+    lsSet("flat-streak", String(S.streak));
+    lsSet("flat-best-streak", String(S.bestStreak));
+    SFX.survive(flat);
+    streakNote = `<p class="streak-note">${flat ? "flat day" : "survival streak"} · ${S.streak} · best ${S.bestStreak}${S.bestStreak > previousBest ? " · new personal best" : ""}</p>`;
+  } else if (mine.length) {
+    S.streak = 0;
+    lsSet("flat-streak", "0");
+    SFX.fall();
+    streakNote = `<p class="streak-note">streak broken · best ${S.bestStreak}</p>`;
+  }
   const title = voided ? "not enough players: everyone gets their stake back"
     : flat ? "flat day! the world stayed level"
     : survived === mine.length ? "you held on" : survived ? "you lost some, kept some" : "you fell off the edge of the world";
@@ -351,6 +387,7 @@ function showResult(x, mine, myIn, myOut, fallenCount) {
     <h2>${esc(title)}</h2>
     <div class="big ${net > 0n ? "win" : net < 0n ? "lose" : ""}">${esc(bigLine)}</div>
     <p>${facts}</p>
+    ${streakNote}
     <table>${rows}</table>
     <div class="row-actions">
       <a class="btn" href="${share}" target="_blank" rel="noopener">share on x</a>
@@ -373,6 +410,8 @@ function onPick(cell) {
 // ------------------------------------------------------------------ render
 function render() {
   const v = view();
+  renderSoundToggle();
+  syncSoundPhase(v);
   renderTimer(v);
   renderWorld(v);
   renderDrop(v);
@@ -514,6 +553,28 @@ function renderDrop(v) {
   $("walletBtn").textContent = LIVE && chain.account ? short(chain.account) : "connect wallet";
 }
 
+function renderSoundToggle() {
+  const button = $("soundBtn");
+  const enabled = SFX.enabled;
+  button.setAttribute("aria-pressed", String(enabled));
+  button.setAttribute("aria-label", enabled ? "Mute game sounds" : "Turn game sounds on");
+  button.title = enabled ? "Mute game sounds" : "Turn game sounds on";
+  $("soundLabel").textContent = enabled ? "sound on" : "sound off";
+}
+
+function syncSoundPhase(v) {
+  if (!v) return;
+  const key = `${S.mode}:${v.id}`;
+  const current = phase(v);
+  if (key !== S.soundRound) {
+    S.soundRound = key;
+    S.soundPhase = current;
+    return;
+  }
+  if (S.soundPhase === "open" && current === "candle") SFX.candle();
+  S.soundPhase = current;
+}
+
 let toastTimer = 0;
 function toast(msg, err = false, html = false) {
   const el = $("toast");
@@ -531,3 +592,4 @@ function status(msg, err = false) {
 }
 
 boot();
+

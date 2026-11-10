@@ -30,6 +30,10 @@
       <button role="tab" data-mode="practice" id="tabPractice">practice</button>
     </nav>
     <div class="bar-right">
+      <button class="ghost sound-toggle" id="soundBtn" type="button" aria-label="Turn game sounds on" aria-pressed="false" title="Turn game sounds on">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8v4h3l4 3V5L6 8H3Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path class="sound-on" d="M13 7a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path class="sound-off" d="m13 8 4 4m0-4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span id="soundLabel">sound off</span>
+      </button>
       <button class="ghost" id="howBtn">how to play</button>
       <button class="btn" id="walletBtn">connect wallet</button>
     </div>
@@ -96,6 +100,7 @@
       <li><b>flat day.</b> if the world ends almost perfectly level (and 3+ players are on it), nobody falls and the survivors share half the flat jackpot.</li>
       <li><b>everyone pays the same.</b> max 3 settlers per wallet per round. 5% of everything that falls is burned forever, 5% feeds the jackpot.</li>
     </ol>
+    <p class="fine">the live arena is one shared round for every connected wallet; practice is solo against bots. game sounds are optional and can be turned on from the header.</p>
     <p class="fine">fully onchain on robinhood chain: no server decides anything. the contract has no owner. $wif is a memecoin with no promise of value; play with what you can afford to lose.</p>
     <form method="dialog"><button class="btn">got it</button></form>
   </dialog>
@@ -108,3 +113,4 @@
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
+
