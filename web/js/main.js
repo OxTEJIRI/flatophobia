@@ -199,7 +199,7 @@ async function refreshClaim() {
 
 async function connect() {
   if (S.mode === "practice") { setMode("live"); }
-  if (!LIVE) { toast("the live arena isn't open yet: practice is the same game"); return; }
+  if (!LIVE) { toast("shared play needs the deployed game contract; practice is solo against bots."); return; }
   if (chain.account) { window.open(`${CONFIG.explorer}/address/${chain.account}`, "_blank", "noopener"); return; }
   if (!chain.hasWallet()) {
     const link = `https://metamask.app.link/dapp/${location.host}${location.pathname}`;
@@ -425,8 +425,8 @@ function renderTimer(v) {
   const reveal = $("revealBtn");
   reveal.classList.add("hidden");
   if (S.mode === "live" && !LIVE) {
-    title.textContent = "the live arena opens soon";
-    sub.textContent = "practice is the same game, with pretend $wif";
+    title.textContent = "the shared arena needs its game contract";
+    sub.textContent = "one board for every wallet · practice is solo against bots";
     return;
   }
   if (!v) { title.textContent = "loading the world…"; sub.textContent = ""; return; }
@@ -514,7 +514,7 @@ function renderDrop(v) {
   // the drop button
   let label = "pick a spot", disabled = cell < 0 || S.busy;
   const stakeTxt = `${v.amount(v.stake)} ${v.unit}`;
-  if (S.mode === "live" && !LIVE) { label = "live arena opens soon"; disabled = true; }
+  if (S.mode === "live" && !LIVE) { label = "shared arena needs contract"; disabled = true; }
   else if (S.busy) label = "working…";
   else if (S.mode === "live" && !chain.account) { label = "connect wallet to play"; disabled = false; }
   else if (S.mode === "practice" && (p === "revealed" || p === "closed")) { label = "next round is coming"; disabled = true; }
