@@ -1,0 +1,17 @@
+# Foundry output and caches
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+
+# Local environment and editor state
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local screenshots and generated preview artifacts
+*.log
+*.png
