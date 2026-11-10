@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Flatophobia</title>
+  <meta name="description" content="The world is flat. Don't fall off. A shared-world strategy game on Robinhood Chain, played with $WIF.">
+  <meta property="og:title" content="Flatophobia">
+  <meta property="og:description" content="The world is flat. Don't fall off. Drop settlers on a tilting flat earth, survive the tip, split what fell. Played with $WIF on Robinhood Chain.">
+  <meta property="og:image" content="assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#0e0e0b">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Unbounded:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="world" aria-label="the flat world, balanced on a pin"></canvas>
+  <div id="labels" aria-hidden="true"></div>
+
+  <header class="bar">
+    <a class="brand" href="./" aria-label="flatophobia home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="15" rx="13" ry="5.2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M16 20v8" stroke="currentColor" stroke-width="2.2"/><circle cx="23" cy="13" r="2.2" fill="#cfef5b"/></svg>
+      <span>flatophobia</span>
+    </a>
+    <nav class="modes" role="tablist" aria-label="mode">
+      <button role="tab" data-mode="live" id="tabLive">live arena</button>
+      <button role="tab" data-mode="practice" id="tabPractice">practice</button>
+    </nav>
+    <div class="bar-right">
+      <button class="ghost" id="howBtn">how to play</button>
+      <button class="btn" id="walletBtn">connect wallet</button>
+    </div>
+  </header>
+
+  <section class="timer" id="timer" aria-live="polite">
+    <div class="candle" id="candle" aria-hidden="true"><i class="flame"></i><i class="wax"></i></div>
+    <div class="timer-text"><b id="timerTitle">loading the world…</b><span id="timerSub"></span></div>
+    <button class="btn small hidden" id="revealBtn">reveal</button>
+  </section>
+
+  <aside class="panel" id="worldPanel" aria-label="the world right now">
+    <div class="jackpot">
+      <span class="k">flat jackpot</span>
+      <b id="jackpot">–</b>
+      <span class="k sub">half of it pays out on a flat day</span>
+    </div>
+    <div class="rows">
+      <div><span class="k">settlers</span><b id="statSettlers">0</b></div>
+      <div><span class="k">players</span><b id="statPlayers">0</b></div>
+      <div><span class="k">at stake</span><b id="statPot">0</b></div>
+    </div>
+    <div class="lean">
+      <div class="lean-head"><span class="k">the world is leaning</span><b id="leanText">nowhere</b></div>
+      <div class="meter" aria-hidden="true"><i id="leanBar"></i><em>flat</em></div>
+      <p class="ifnow" id="ifNow">nobody on the board yet</p>
+    </div>
+    <div class="recent">
+      <span class="k">last rounds</span>
+      <ol id="recent"></ol>
+    </div>
+  </aside>
+
+  <aside class="panel" id="dropPanel" aria-label="your move">
+    <div class="pick" id="pickInfo">
+      <span class="k">your move</span>
+      <b>tap a spot on the world</b>
+      <p class="hint">further out pays more (×1 to ×5), but pulls the world harder toward you. when the round ends, the red zone slides off the edge.</p>
+    </div>
+    <button class="btn big" id="dropBtn" disabled>pick a spot</button>
+    <p class="status" id="dropStatus" role="status"></p>
+    <div class="mine">
+      <span class="k">your settlers this round</span>
+      <ul id="mine"><li class="empty">none yet (max 3)</li></ul>
+    </div>
+    <div class="claim hidden" id="claimBox">
+      <span class="k">waiting for you</span>
+      <b id="claimAmount">0</b>
+      <button class="btn" id="claimBtn">claim</button>
+    </div>
+    <p class="wallet-line" id="walletLine"></p>
+  </aside>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="howDialog" class="sheet">
+    <form method="dialog"><button class="close" aria-label="close">×</button></form>
+    <h2>how not to fall off the world</h2>
+    <ol class="rules">
+      <li><b>the world is flat</b> and balanced on a pin. every settler you drop costs the same flat stake in $wif, and pulls the world toward its spot.</li>
+      <li><b>further out pays more.</b> rings pay ×1 near the pole up to ×5 on the ice wall, and outer settlers pull the world much harder.</li>
+      <li><b>when the round ends, the world tips.</b> the low side's edge slides off first: the steeper the tip, the further in the slide reaches. the red zone shows who would fall right now. the survivors split what fell, weighted by their ring.</li>
+      <li><b>the candle.</b> the last part of every round hides the real end. drop too late and your settler lands after the candle went out: it falls too.</li>
+      <li><b>flat day.</b> if the world ends almost perfectly level (and 3+ players are on it), nobody falls and the survivors share half the flat jackpot.</li>
+      <li><b>everyone pays the same.</b> max 3 settlers per wallet per round. 5% of everything that falls is burned forever, 5% feeds the jackpot.</li>
+    </ol>
+    <p class="fine">fully onchain on robinhood chain: no server decides anything. the contract has no owner. $wif is a memecoin with no promise of value; play with what you can afford to lose.</p>
+    <form method="dialog"><button class="btn">got it</button></form>
+  </dialog>
+
+  <dialog id="resultDialog" class="sheet result">
+    <form method="dialog"><button class="close" aria-label="close">×</button></form>
+    <div id="resultBody"></div>
+  </dialog>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
